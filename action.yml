@@ -1,0 +1,49 @@
+name: "GitHub Projects Set Select Option"
+description: "Sets the value of a select list based on the text value."
+branding:
+  icon: search
+  color: orange
+
+inputs:
+  token:
+    description: "Token to access the project via API"
+    required: true
+  project-number:
+    description: "Number of the project"
+    required: true
+  project-owner:
+    description: "The owner of the project. This is normally an organization."
+    required: true
+  item-id:
+    description: "The Id of the item which should be edited."
+    required: true
+  field-name:
+    description: "The name of the select field."
+    required: true
+  select-option-name:
+    description: "The Name for the option of the select field. It has to be an existing value."
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get field ids
+      id: get-field-ids
+      uses: infinite-automations/gh-projects-field-ids@v1.0.0
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      with:
+        token: ${{ inputs.token }}
+        project-number: ${{ inputs.project-number }}
+        project-owner: ${{ inputs.project-owner }}
+        field-name: ${{ inputs.field-name }}
+        select-option-name: ${{ inputs.select-option-name }}
+
+    - name: Set Select field value
+      id: set-select-field-alue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        project_id=$(gh project list --owner ${{ inputs.project-owner }} --format json --jq '.projects[] | select(.number == ${{ inputs.project-number }}) .id')
+        gh project item-edit --id ${{ inputs.item-id }} --project-id $project_id --field-id ${{ steps.get-field-ids.outputs.field-id }} --single-select-option-id ${{ steps.get-field-ids.outputs.select-option-id }} 
