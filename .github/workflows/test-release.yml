@@ -1,19 +1,27 @@
 name: Test & Release
 
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
       PROJECT_NUMBER: 1
       PROJECT_OWNER: infinite-automations
       FIELD_NAME: Test select field
@@ -23,20 +31,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - uses: actions/create-github-app-token@v1
+        id: app-token
         with:
-          show-progress: false
+          app-id: ${{ vars.TESTING_APP_ID }}
+          private-key: ${{ secrets.TESTING_APP_KEY }}
 
       - name: Get field id precondition
         id: get-field-id-pre
         uses: infinite-automations/gh-projects-field-ids@v1.0.0
         with:
-          token: ${{ secrets.PROJECT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           project-number: ${{ env.PROJECT_NUMBER }}
           project-owner: ${{ env.PROJECT_OWNER }}
           field-name: ${{ env.FIELD_NAME }}
           select-option-name: ${{ env.PRECONDITION_OPTION }}
 
       - name: Setup test
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh project item-edit \
             --id ${{ env.ITEM_ID }} \
@@ -45,6 +59,8 @@ jobs:
             --single-select-option-id ${{ steps.get-field-id-pre.outputs.select-option-id }}
 
       - name: Precondition
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           FIELD_KEY=$(echo "${{ env.FIELD_NAME }}" | tr '[:upper:]' '[:lower:]')
           FIELD_VAL=$(\
@@ -65,7 +81,7 @@ jobs:
         id: set-select-option-id
         uses: ./
         with:
-          token: ${{ secrets.PROJECT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           project-number: 1
           project-owner: ${{ env.PROJECT_OWNER }}
           field-name: ${{ env.FIELD_NAME }}
@@ -73,6 +89,8 @@ jobs:
           item-id: ${{ env.ITEM_ID }}
 
       - name: Postcondition
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           FIELD_KEY=$(echo "${{ env.FIELD_NAME }}" | tr '[:upper:]' '[:lower:]')
           FIELD_VAL=$(\
