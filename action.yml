@@ -30,8 +30,6 @@ runs:
     - name: Get field ids
       id: get-field-ids
       uses: infinite-automations/gh-projects-field-ids@v1.0.0
-      env:
-        GH_TOKEN: ${{ inputs.token }}
       with:
         token: ${{ inputs.token }}
         project-number: ${{ inputs.project-number }}
@@ -45,5 +43,13 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
       run: |
-        project_id=$(gh project list --owner ${{ inputs.project-owner }} --format json --jq '.projects[] | select(.number == ${{ inputs.project-number }}) .id')
-        gh project item-edit --id ${{ inputs.item-id }} --project-id $project_id --field-id ${{ steps.get-field-ids.outputs.field-id }} --single-select-option-id ${{ steps.get-field-ids.outputs.select-option-id }} 
+        project_id=$(\
+          gh project list \
+            --owner ${{ inputs.project-owner }} \
+            --format json \
+            --jq '.projects[] | select(.number == ${{ inputs.project-number }}) .id')
+        gh project item-edit \
+          --id ${{ inputs.item-id }} \
+          --project-id $project_id \
+          --field-id ${{ steps.get-field-ids.outputs.field-id }} \
+          --single-select-option-id ${{ steps.get-field-ids.outputs.select-option-id }}

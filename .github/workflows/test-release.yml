@@ -1,0 +1,110 @@
+name: Test & Release
+
+on:
+  workflow_dispatch:
+  push:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      PROJECT_NUMBER: 1
+      PROJECT_OWNER: infinite-automations
+      FIELD_NAME: Test select field
+      ITEM_ID: PVTI_lADOCOJGKs4AX9CyzgOVcds
+      PRECONDITION_OPTION: Option1
+      POSTCONDITION_OPTION: Option2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Get field id precondition
+        id: get-field-id-pre
+        uses: infinite-automations/gh-projects-field-ids@v1.0.0
+        with:
+          token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ env.PROJECT_NUMBER }}
+          project-owner: ${{ env.PROJECT_OWNER }}
+          field-name: ${{ env.FIELD_NAME }}
+          select-option-name: ${{ env.PRECONDITION_OPTION }}
+
+      - name: Setup test
+        run: |
+          gh project item-edit \
+            --id ${{ env.ITEM_ID }} \
+            --project-id $(gh project list --owner ${{ env.PROJECT_OWNER }} --format json --jq '.projects[] | select(.number == ${{ env.PROJECT_NUMBER }}) .id') \
+            --field-id ${{ steps.get-field-id-pre.outputs.field-id }} \
+            --single-select-option-id ${{ steps.get-field-id-pre.outputs.select-option-id }}
+
+      - name: Precondition
+        run: |
+          FIELD_KEY=$(echo "${{ env.FIELD_NAME }}" | tr '[:upper:]' '[:lower:]')
+          FIELD_VAL=$(\
+            gh project item-list ${{ env.PROJECT_NUMBER }} \
+              --owner ${{ env.PROJECT_OWNER }} \
+              --format json \
+              --jq ".items[0].\"$FIELD_KEY\"" \
+            )
+          if [ "$FIELD_VAL" != "${{ env.PRECONDITION_OPTION }}" ]; then
+            echo "Precondition failed"
+            echo
+            echo "Expected: ${{ env.PRECONDITION_OPTION }}"
+            echo "Actual: $FIELD_VAL"
+            exit 1
+          fi
+
+      - name: Set Select Option Field
+        id: set-select-option-id
+        uses: ./
+        with:
+          token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: 1
+          project-owner: ${{ env.PROJECT_OWNER }}
+          field-name: ${{ env.FIELD_NAME }}
+          select-option-name: ${{ env.POSTCONDITION_OPTION }}
+          item-id: ${{ env.ITEM_ID }}
+
+      - name: Postcondition
+        run: |
+          FIELD_KEY=$(echo "${{ env.FIELD_NAME }}" | tr '[:upper:]' '[:lower:]')
+          FIELD_VAL=$(\
+            gh project item-list ${{ env.PROJECT_NUMBER }} \
+              --owner ${{ env.PROJECT_OWNER }} \
+              --format json \
+              --jq ".items[0].\"$FIELD_KEY\"" \
+            )
+          if [ "$FIELD_VAL" != "${{ env.POSTCONDITION_OPTION }}" ]; then
+            echo "Postcondition failed"
+            echo
+            echo "Expected: ${{ env.POSTCONDITION_OPTION }}"
+            echo "Actual: $FIELD_VAL"
+            exit 1
+          fi
+
+  release:
+    name: Release
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Semantic Release Plugins
+        run: |
+          npm install semantic-release-replace-plugin -D
+          npm install --save-dev semantic-release-major-tag
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          dry_run: ${{ github.event_name == 'pull_request' }}
+          ci: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
