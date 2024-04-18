@@ -47,6 +47,7 @@ runs:
           gh project list \
             --owner ${{ inputs.project-owner }} \
             --format json \
+            --limit 1000 \
             --jq '.projects[] | select(.number == ${{ inputs.project-number }}) .id')
         gh project item-edit \
           --id ${{ inputs.item-id }} \
