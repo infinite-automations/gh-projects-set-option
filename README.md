@@ -34,8 +34,8 @@ Sets the value for a select field in GitHub Projects based on the text value.
 | project-number | Number of the project | Integer | Yes |
 | project-owner | The owner of the project. This is normally an organization. | String | Yes |
 | item-id | The Id of the item which should be edited. | Integer | Yes |
-| field-name | The name of the select field. | String | Yes |
-| select-option-name | The Name for the option of the select field. It has to be an existing value. | String | Yes |
+| field-name | The name of the select field. | String | False |
+| select-option-name | The Name for the option of the select field. It has to be an existing value. | String | False |
 
 # License
 
