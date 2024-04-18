@@ -7,7 +7,7 @@ Sets the value for a select field in GitHub Projects based on the text value.
 # Usage
 
 ```yaml
-- uses: infinite-automations/gh-projects-set-option@v1.0.0
+- uses: infinite-automations/gh-projects-set-option@v1.1.0
   with:
     # Token which is used to access the project data via GitHub CLI
     token: ''
